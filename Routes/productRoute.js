@@ -83,7 +83,7 @@ productRouter.post("/send-email",async(req,res)=>{
         // Details for the email to be sent
             const mailOptions = {
                 from: '"Vman " <smartdesk2015@gmail.com>',
-                to: 'parimalradhe2015@gmail.com', 
+                to: 'raghavendradj842@gmail.com', 
                 subject: "Inquiry By User",
                 text: "Change your password",
                 html: populatedHtml,
