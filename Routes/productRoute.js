@@ -10,7 +10,7 @@ productRouter.post("/productentry",async(req,res)=>{
     try {
         const {product,serialNo,description,image,assertId,Token_uri} = req.body
         console.log(req.body)
-        const existingProduct= await productModel.findOne({serialNo})
+        const existingProduct= await productModel.findOne({assertId})
         if (existingProduct) {
             return res.status(409).json({ message: 'Product already exists' });
         }
