@@ -5,6 +5,7 @@ const port= process.env.PORT
 const app= express()
 app.use(express.json())
 const cors= require("cors");
+const { userRouter } = require('./Routes/userRoutes')
 ;
 
 app.get("/",(req,res)=>{
@@ -13,6 +14,7 @@ app.get("/",(req,res)=>{
 app.use(cors())
 
 app.use("/",productRouter)
+app.use("/user",userRouter)
 
 app.listen((port),async(req,res)=>{
     try {
