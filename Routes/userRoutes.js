@@ -137,28 +137,62 @@ userRouter.post("/addWalletToProfile", async (req, res) => {
     isUserPresent.walletAddress = walletAddress;
     // Save the updated user document
     await isUserPresent.save();
-    return res.status(200).json({ message: "Wallet address added Binded" });
+    return res.status(200).json({ message: "Wallet address Binded" });
   } catch (error) {
     console.error("Error adding wallet address to user profile:", error);
     return res.status(500).json({ message: "Internal server error" });
   }
 });
-userRouter.post("/comparewalletaddress",async(req,res)=>{
+
+// userRouter.post("/comparewalletaddress",async(req,res)=>{
+//   try {
+//     const {walletAddress,email}= req.body;
+//     const isUserPresent = await userModel.findOne({email})
+//     if (!walletAddress) {
+//       // Check if the user has already bound a wallet
+//       if (!isUserPresent.walletAddress) {
+//         return res.status(400).json({ message: "Please bind your wallet" });
+//       }
+      
+//       return res.status(400).json({ message: "Connect your wallet" });
+//     }
+//     // check the wallet address matches or not 
+//      if( walletAddress !== isUserPresent.walletAddress){
+//       return res.status(400).json({message:"Wrong Wallet Connected"})
+//     }
+//     return res.status(200).json({message:"right wallet address"})
+//   } catch (error) {
+//     return res.status(500).json({ message: "Internal server error" })
+//   }
+// })
+
+userRouter.post("/comparewalletaddress", async (req, res) => {
   try {
-    const {walletAddress,email}= req.body;
-    const isUserPresent = await userModel.findOne({email})
-    if(!isUserPresent){
-      return res.status(400).json({message:"please Bind Your Wallet "})
+    const { walletAddress, email } = req.body;
+    const isUserPresent = await userModel.findOne({ email });
+
+    if (!walletAddress) {
+      // Check if the user has already bound a wallet
+      return res.status(400).json({ message: "Connect your wallet" });
+      // if (!isUserPresent.walletAddress) {
+      //   return res.status(400).json({ message: "Please bind your wallet" });
+      // }
     }
-    // check the wallet address matches or not 
-    if(isUserPresent.walletAddress !== walletAddress){
-      return res.status(400).json({message:"Wrong Wallet Connected"})
+
+    if (!isUserPresent.walletAddress) {
+      return res.status(400).json({ message: "Please bind your wallet" });
     }
-    return res.status(200).json({message:"right wallet address"})
+
+    // Check if the wallet address matches
+    if (walletAddress !== isUserPresent.walletAddress) {
+      return res.status(400).json({ message: "Wrong Wallet Connected" });
+    }
+
+    return res.status(200).json({ message: "Right wallet address" });
   } catch (error) {
-    return res.status(500).json({ message: "Internal server error" })
+    return res.status(500).json({ message: "Internal server error" });
   }
-})
+});
 
 module.exports={userRouter}
 
