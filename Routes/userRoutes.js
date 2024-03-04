@@ -143,6 +143,22 @@ userRouter.post("/addWalletToProfile", async (req, res) => {
     return res.status(500).json({ message: "Internal server error" });
   }
 });
+userRouter.post("/comparewalletaddress",async(req,res)=>{
+  try {
+    const {walletAddress,email}= req.body;
+    const isUserPresent = await userModel.findOne({email})
+    if(!isUserPresent){
+      return res.status(400).json({message:"User not found "})
+    }
+    // check the wallet address matches or not 
+    if(isUserPresent.walletAddress !== walletAddress){
+      return res.status(400).json({message:"Wrong Wallet Connected"})
+    }
+    return res.send("fine")
+  } catch (error) {
+    return res.status(500).json({ message: "Internal server error" })
+  }
+})
 
 module.exports={userRouter}
 
