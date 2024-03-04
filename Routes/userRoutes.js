@@ -110,8 +110,7 @@ try {
   // Generating access token and sending login success response
   const accessToken = jwt.sign(
     { userId: isUserPresent._id, user: isUserPresent },
-    process.env.JWT_ACCESS_TOKEN_SECRET,
-    { expiresIn: "24hr" }
+    process.env.JWT_ACCESS_TOKEN_SECRET
   );
   return res.status(200).send({
     data: { accessToken, isUserPresent },
