@@ -154,7 +154,7 @@ userRouter.post("/comparewalletaddress",async(req,res)=>{
     if(isUserPresent.walletAddress !== walletAddress){
       return res.status(400).json({message:"Wrong Wallet Connected"})
     }
-    return res.send("fine")
+    return res.status(200).json({message:"right wallet address"})
   } catch (error) {
     return res.status(500).json({ message: "Internal server error" })
   }
