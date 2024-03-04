@@ -148,7 +148,7 @@ userRouter.post("/comparewalletaddress",async(req,res)=>{
     const {walletAddress,email}= req.body;
     const isUserPresent = await userModel.findOne({email})
     if(!isUserPresent){
-      return res.status(400).json({message:"User not found "})
+      return res.status(400).json({message:"please Bind Your Wallet "})
     }
     // check the wallet address matches or not 
     if(isUserPresent.walletAddress !== walletAddress){
