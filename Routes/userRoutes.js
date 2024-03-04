@@ -125,5 +125,24 @@ try {
 }
 })
 
+
+userRouter.post("/addWalletToProfile", async (req, res) => {
+  try {
+    const { walletAddress ,email} = req.body;
+    const isUserPresent = await userModel.findOne({ email });
+    if (!isUserPresent) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    // update the wallet address to the user's profile
+    isUserPresent.walletAddress = walletAddress;
+    // Save the updated user document
+    await isUserPresent.save();
+    return res.status(200).json({ message: "Wallet address added Binded" });
+  } catch (error) {
+    console.error("Error adding wallet address to user profile:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+});
+
 module.exports={userRouter}
 
