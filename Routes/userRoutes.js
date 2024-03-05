@@ -3,7 +3,7 @@ const {userModel}= require("../Models/userModel")
 const bcrypt = require("bcrypt")
 const jwt= require("jsonwebtoken")
 const userRouter=express.Router()
-
+const {userAuth}= require("../Middleware/userOauth")
 userRouter.post("/register",async(req,res)=>{
     const { name, email, password } = req.body; // Retreiving data from request body
 
@@ -129,10 +129,17 @@ try {
 userRouter.post("/addWalletToProfile", async (req, res) => {
   try {
     const { walletAddress ,email} = req.body;
+     // Check if the wallet address is already bound to another user account
+     const isWalletBound = await userModel.exists({ walletAddress });
+     if (isWalletBound) {
+       return res.status(400).json({ message: "Wallet address is already bound to another user" });
+     }
+
     const isUserPresent = await userModel.findOne({ email });
     if (!isUserPresent) {
-      return res.status(404).json({ message: "User not found" });
+      return res.status(404).json({ message: "Login First" });
     }
+   
     // update the wallet address to the user's profile
     isUserPresent.walletAddress = walletAddress;
     // Save the updated user document
@@ -140,56 +147,85 @@ userRouter.post("/addWalletToProfile", async (req, res) => {
     return res.status(200).json({ message: "Wallet address Binded" });
   } catch (error) {
     console.error("Error adding wallet address to user profile:", error);
-    return res.status(500).json({ message: "Internal server error" });
+    return res.status(500).json({ message: error.message });
   }
 });
 
-// userRouter.post("/comparewalletaddress",async(req,res)=>{
-//   try {
-//     const {walletAddress,email}= req.body;
-//     const isUserPresent = await userModel.findOne({email})
-//     if (!walletAddress) {
-//       // Check if the user has already bound a wallet
-//       if (!isUserPresent.walletAddress) {
-//         return res.status(400).json({ message: "Please bind your wallet" });
-//       }
-      
-//       return res.status(400).json({ message: "Connect your wallet" });
-//     }
-//     // check the wallet address matches or not 
-//      if( walletAddress !== isUserPresent.walletAddress){
-//       return res.status(400).json({message:"Wrong Wallet Connected"})
-//     }
-//     return res.status(200).json({message:"right wallet address"})
-//   } catch (error) {
-//     return res.status(500).json({ message: "Internal server error" })
-//   }
-// })
 
+
+// userRouter.post("/comparewalletaddress", async (req, res) => {
+//   try {
+//     const { walletAddress, email } = req.body;
+//     const isUserPresent = await userModel.findOne({ email });
+
+//     // if (!walletAddress) {
+//     //   // Check if the user has already bound a wallet
+//     //   return res.status(400).json({ message: "Connect your wallet" });
+//     // }
+
+//     if (!isUserPresent.walletAddress) {
+//       return res.status(400).json({ message: "Please bind your wallet" });
+//     }
+
+//     // Check if the wallet address matches
+//     if (walletAddress !== isUserPresent.walletAddress) {
+//       return res.status(400).json({ message: "Wrong Wallet Connected" });
+//     }
+
+//     return res.status(200).json({ message: "Right wallet address" });
+//   } catch (error) {
+//     return res.status(500).json({ message: error.message });
+//   }
+// });
 userRouter.post("/comparewalletaddress", async (req, res) => {
   try {
-    const { walletAddress, email } = req.body;
-    const isUserPresent = await userModel.findOne({ email });
+      const { walletAddress, email } = req.body;
 
-    if (!walletAddress) {
-      // Check if the user has already bound a wallet
-      return res.status(400).json({ message: "Connect your wallet" });
-      // if (!isUserPresent.walletAddress) {
-      //   return res.status(400).json({ message: "Please bind your wallet" });
-      // }
-    }
+      // Check if wallet address is provided
+      if (!walletAddress) {
+          return res.status(400).json({ message: "Wallet address is required" });
+      }
 
-    if (!isUserPresent.walletAddress) {
-      return res.status(400).json({ message: "Please bind your wallet" });
-    }
+      // Find user by email address
+      const user = await userModel.findOne({ email });
 
-    // Check if the wallet address matches
-    if (walletAddress !== isUserPresent.walletAddress) {
-      return res.status(400).json({ message: "Wrong Wallet Connected" });
-    }
+      // Check if user exists
+      if (!user) {
+          return res.status(404).json({ message: "User not found" });
+      }
 
-    return res.status(200).json({ message: "Right wallet address" });
+      // Check if user's wallet address is present
+      if (!user.walletAddress) {
+          return res.status(400).json({ message: "Please bind your wallet address first" });
+      }
+
+      // Compare user's wallet address with provided wallet address
+      if (user.walletAddress === walletAddress) {
+          return res.status(200).json({ message: "Wallet addresses match" });
+      } else {
+          return res.status(400).json({ message: "Wrong Wllet Connected" });
+      }
   } catch (error) {
+      console.error("Error comparing wallet address:", error);
+      return res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+userRouter.get("/wallet", userAuth, async (req, res) => {
+  try {
+    // Find the user by user ID attached to the request object
+    const user = await userModel.findById(req.user.userId);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    // Check if user has a wallet address
+    if (!user.walletAddress) {
+      return res.status(400).json({ message: "User does not have a wallet address" });
+    }
+    // Return the user's wallet address
+    return res.status(200).json({ walletAddress: user.walletAddress });
+  } catch (error) {
+    console.error("Error getting wallet address:", error);
     return res.status(500).json({ message: "Internal server error" });
   }
 });
