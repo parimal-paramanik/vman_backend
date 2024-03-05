@@ -183,7 +183,7 @@ userRouter.post("/comparewalletaddress", async (req, res) => {
 
       // Check if wallet address is provided
       if (!walletAddress) {
-          return res.status(400).json({ message: "Wallet address is required" });
+          return res.status(400).json({ message: "Wallet not connected" });
       }
 
       // Find user by email address
