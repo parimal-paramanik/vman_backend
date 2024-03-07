@@ -109,7 +109,7 @@ userRouter.get('/verifyemail', async (req, res) => {
     user.verified = true;
     await user.save();
     console.log("User account verified:", user.email,token); // Debugging statement
-    res.redirect(`http://localhost:5173/`);
+    res.redirect(`https://client-vman.vercel.app/`);
   } else {
     console.log("Invalid or expired verification token:"); // Debugging statement
     res.status(400).json('Invalid or expired verification token');
