@@ -4,6 +4,19 @@ const bcrypt = require("bcrypt")
 const jwt= require("jsonwebtoken")
 const userRouter=express.Router()
 const {userAuth}= require("../Middleware/userOauth")
+
+
+const nodemailer = require('nodemailer');
+require("dotenv").config()
+// Nodemailer configuration
+const transporter  = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
+  },
+});
+
 userRouter.post("/register",async(req,res)=>{
     const { name, email, password } = req.body; // Retreiving data from request body
 
@@ -38,91 +51,103 @@ userRouter.post("/register",async(req,res)=>{
       error:
         "Password must be 8-16 characters, contain at least one special character, one number, and one uppercase letter!",
     });
-  }//Checking if user is already present in database
-  const isUser = await userModel.findOne({ email });
-  if (isUser) {
-    return res.status(401).json({
-      
+  }
+ 
+   try {
+    const isUser = await userModel.findOne({ email });
+    if (isUser) {
+      return res.status(401).json({
         "message": "Failed to register",
         "error": "User already exists with this email!"
-    
-      
-    });
-  }
-  try {
-    // hashing the password with bcrypt
-    const hashedPassword = await bcrypt.hash(password, 8);
+    })
+    } else {
+      bcrypt.hash(password, 5, async (err, hash) => {
+        if (err) {
+          res.status(401).json({message:"error while bcrypting"});
+        }
+        const verificationToken = await jwt.sign({ email }, process.env.JWT_ACCESS_TOKEN_SECRET)
+        console.log(verificationToken)
+        const user = new userModel({ name, email, password: hash, verificationToken });
+        await user.save();
 
-    // Creating a new user in database
-    const user = new userModel({
-      email,
-      name,
-      password: hashedPassword,
-    });
-    await user.save();
-
-    // Sending the registered user details in response upon successful registration
-    return res.status(200).json({
-      message: "Registartion successful!",
-      data: user,
-    });
-  } catch (error) {
-    console.log("[REGISTER ERROR]", error);
-    return res
-      .status(500)
-      .json({ message: "Internal Error!", error: error.message });
-  }
+        // email to verify
+  
+        const verificationLink = `https://bacde.onrender.com/user/verifyemail?token=${verificationToken}`;
+        const mailOptions = {
+          from: 'smartdesk2015@gmail.com',
+          to: email,
+          subject: 'Email Verification',
+          text: `Click the following link to verify your email:${verificationLink}`
+        };
+        transporter.sendMail(mailOptions, (error, info) => {
+          if (error) {
+            console.error(error);
+            res.status(400).json({msg:error.message})
+            // Handle error sending email
+          } else {
+            console.log('Email sent: ' + info.response);
+            res.send({msg: "email send for verification" ,user})
+            // Handle successful email sending
+          }
+        })
+      });
+    }
+   
+   } catch (error) {
+    res.status(400).json({msg:error.message})
+   }
 })
+userRouter.get('/verifyemail', async (req, res) => {
+  const token = req.query.token;
+  console.log("Received token:", token); // Debugging statement
+  
+  const user = await userModel.findOne({ verificationToken: token });
+  console.log("User found in database:", user); // Debugging statement
+
+  if (user && !user.verified) {
+    // Mark the user account as verified in your database
+    user.verified = true;
+    await user.save();
+    console.log("User account verified:", user.email,token); // Debugging statement
+    res.redirect(`http://localhost:5173/`);
+  } else {
+    console.log("Invalid or expired verification token:"); // Debugging statement
+    res.status(400).json('Invalid or expired verification token');
+  }
+});
 
 
 userRouter.post("/login",async(req,res)=>{
-//Retreiving user email and password from request body
-const { email, password } = req.body;
-if (!email || !password) {
-  return res.status(401).json({
-    message: "Login Failed!",
-    error: "Insufficient Information!",
-  });
-}
-try {
-  // Checking for user in database
-  const isUserPresent = await userModel.findOne({ email });
+  try {
+    const { email, password } = req.body;
+    if(!email  || !password){
+      return  res.status(400).json({  "msg": "please fill all field " });
+   }
+    const user = await userModel.findOne({ email });
+    // console.log(user);
+    if (!user) {
+      res.status(400).json({"msg": "User Not found, Please Register First" });
+    } else {
+      if (user.verified) {
 
-  // User not present in the database.
-  if (!isUserPresent) {
-    return res.status(404).json({
-      message: "Login Failed! No user found. Please register!",
-      error: "No user found. Please register!!"
-    });
+        bcrypt.compare(password, user.password, (err, result) => {
+          if (result) {
+            let accessToken = jwt.sign({ userId: user._id }, process.env.JWT_ACCESS_TOKEN_SECRET);
+            res.status(200).json({
+              data: { accessToken, user },
+            message: "Login Success!",
+            });
+          } else {
+            res.status(400).json({  "msg": "Wrong Credentials" });
+          }
+        });
+      }else{
+        res.status(400).json({ "msg": "Your email is not verified" });  
+      }
+    }
+  } catch (err) {
+    res.status(400).json({ "msg": err.message });
   }
-  // Password verification
-  const isPasswordCorrect = bcrypt.compareSync(
-    password,
-    isUserPresent.password
-  );
-  // If password is not correct
-  if (!isPasswordCorrect) {
-    return res.status(401).send({
-      message: "Login Failed!",
-      error: "Wrong Credentials!",
-    });
-  }
-  // Generating access token and sending login success response
-  const accessToken = jwt.sign(
-    { userId: isUserPresent._id, user: isUserPresent },
-    process.env.JWT_ACCESS_TOKEN_SECRET
-  );
-  return res.status(200).send({
-    data: { accessToken, isUserPresent },
-    message: "Login Success!",
-  });
-} catch (error) {
-  console.log("[LOGIN ERROR]", error);
-  return res.status(500).json({
-    message: "Internal Server error!",
-    error: error.message,
-  });
-}
 })
 
 
@@ -151,32 +176,6 @@ userRouter.post("/addWalletToProfile", async (req, res) => {
   }
 });
 
-
-
-// userRouter.post("/comparewalletaddress", async (req, res) => {
-//   try {
-//     const { walletAddress, email } = req.body;
-//     const isUserPresent = await userModel.findOne({ email });
-
-//     // if (!walletAddress) {
-//     //   // Check if the user has already bound a wallet
-//     //   return res.status(400).json({ message: "Connect your wallet" });
-//     // }
-
-//     if (!isUserPresent.walletAddress) {
-//       return res.status(400).json({ message: "Please bind your wallet" });
-//     }
-
-//     // Check if the wallet address matches
-//     if (walletAddress !== isUserPresent.walletAddress) {
-//       return res.status(400).json({ message: "Wrong Wallet Connected" });
-//     }
-
-//     return res.status(200).json({ message: "Right wallet address" });
-//   } catch (error) {
-//     return res.status(500).json({ message: error.message });
-//   }
-// });
 userRouter.post("/comparewalletaddress", async (req, res) => {
   try {
       const { walletAddress, email } = req.body;
