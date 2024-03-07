@@ -202,7 +202,7 @@ userRouter.post("/comparewalletaddress", async (req, res) => {
       if (user.walletAddress === walletAddress) {
           return res.status(200).json({ message: "Wallet addresses match" });
       } else {
-          return res.status(400).json({ message: "Wrong Wllet Connected" });
+          return res.status(400).json({ message: "Wrong Wallet Connected" });
       }
   } catch (error) {
       console.error("Error comparing wallet address:", error);
