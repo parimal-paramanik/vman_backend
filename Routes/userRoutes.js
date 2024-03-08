@@ -55,6 +55,7 @@ userRouter.post("/register",async(req,res)=>{
  
    try {
     const isUser = await userModel.findOne({ email });
+    // if (isUser && isUser.verified === true) {
     if (isUser) {
       return res.status(401).json({
         "message": "Failed to register",
@@ -73,6 +74,7 @@ userRouter.post("/register",async(req,res)=>{
         // email to verify
   
         const verificationLink = `https://bacde.onrender.com/user/verifyemail?token=${verificationToken}`;
+        // const verificationLink = `http://localhost:8080/user/verifyemail?token=${verificationToken}`;
         const mailOptions = {
           from: 'smartdesk2015@gmail.com',
           to: email,
@@ -110,6 +112,7 @@ userRouter.get('/verifyemail', async (req, res) => {
     await user.save();
     console.log("User account verified:", user.email,token); // Debugging statement
     res.redirect(`https://client-vman.vercel.app/`);
+    // res.redirect(`http://localhost:5173/`);
   } else {
     console.log("Invalid or expired verification token:"); // Debugging statement
     res.status(400).json('Invalid or expired verification token');
@@ -153,52 +156,57 @@ userRouter.post("/login",async(req,res)=>{
 
 userRouter.post("/addWalletToProfile", async (req, res) => {
   try {
-    const { walletAddress ,email} = req.body;
-     // Check if the wallet address is already bound to another user account
-     const isWalletBound = await userModel.exists({ walletAddress });
-     if (isWalletBound) {
-       return res.status(400).json({ message: "Wallet address is already bound to another user" });
-     }
+    const { walletAddress, email } = req.body;
 
-    const isUserPresent = await userModel.findOne({ email });
-    if (!isUserPresent) {
-      return res.status(404).json({ message: "Login First" });
+    // Check if the user exists
+    const user = await userModel.findOne({ email });
+    if (!user) {
+      return res.status(404).json("Please login first.");
     }
-   
-    // update the wallet address to the user's profile
-    isUserPresent.walletAddress = walletAddress;
-    // Save the updated user document
-    await isUserPresent.save();
-    return res.status(200).json({ message: "Wallet address Binded" });
+
+    // Check if the wallet is already associated with another user
+    const existingUserWithWallet = await userModel.findOne({ walletAddress });
+    if (existingUserWithWallet && existingUserWithWallet.email !== email) {
+      return res.status(400).json("Wallet Binded to other user");
+    }
+
+    // Check if the wallet is already associated with the user
+    if (user.walletAddress === walletAddress) {
+      return res.status(400).json(" This Wallet is already Binded to you");
+    }
+
+    // Check if the user already has a wallet
+    if (user.walletAddress) {
+      return res.status(400).json("One user can not have multiple Wallet");
+    }
+
+    // Assign the wallet address to the user
+    user.walletAddress = walletAddress;
+    await user.save();
+
+    return res.status(200).json("Wallet Binded Successfully");
   } catch (error) {
     console.error("Error adding wallet address to user profile:", error);
-    return res.status(500).json({ message: error.message });
+    return res.status(500).json(error.message);
   }
 });
+
+
 
 userRouter.post("/comparewalletaddress", async (req, res) => {
   try {
       const { walletAddress, email } = req.body;
-
       // Check if wallet address is provided
       if (!walletAddress) {
           return res.status(400).json({ message: "Wallet not connected" });
       }
-
-      // Find user by email address
       const user = await userModel.findOne({ email });
-
-      // Check if user exists
       if (!user) {
           return res.status(404).json({ message: "Login to Continue" });
       }
-
-      // Check if user's wallet address is present
       if (!user.walletAddress) {
           return res.status(400).json({ message: "Please bind your wallet address first" });
       }
-
-      // Compare user's wallet address with provided wallet address
       if (user.walletAddress === walletAddress) {
           return res.status(200).json({ message: "Wallet addresses match" });
       } else {
@@ -210,16 +218,17 @@ userRouter.post("/comparewalletaddress", async (req, res) => {
   }
 });
 
-userRouter.get("/wallet", userAuth, async (req, res) => {
+userRouter.get("/wallet", async (req, res) => {
   try {
-    // Find the user by user ID attached to the request object
-    const user = await userModel.findById(req.user.userId);
+    // enpoint http://localhost:8080/user/wallet?email=smartdesk2015@gmail.com
+    const email= req.query.email
+    const user = await userModel.findOne({email});
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
     // Check if user has a wallet address
     if (!user.walletAddress) {
-      return res.status(400).json({ message: "User does not have a wallet address" });
+      return res.status(400).json({ message: "Please bind your wallet address first" });
     }
     // Return the user's wallet address
     return res.status(200).json({ walletAddress: user.walletAddress });
