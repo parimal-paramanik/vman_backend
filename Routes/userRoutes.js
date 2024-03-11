@@ -218,6 +218,7 @@ userRouter.post("/comparewalletaddress", async (req, res) => {
   }
 });
 
+
 userRouter.get("/wallet", async (req, res) => {
   try {
     // enpoint http://localhost:8080/user/wallet?email=smartdesk2015@gmail.com
@@ -237,6 +238,28 @@ userRouter.get("/wallet", async (req, res) => {
     return res.status(500).json({ message: "Internal server error" });
   }
 });
+userRouter.get("/checkWalletBinding", async (req, res) => {
+  try {
+    const { email } = req.query;
+
+    // Check if the user exists
+    const user = await userModel.findOne({ email });
+    if (!user) {
+      return res.status(404).json("User not found.");
+    }
+
+    // Check if the user has a wallet address
+    if (user.walletAddress) {
+      return res.status(200).json({ isBound: true, walletAddress: user.walletAddress });
+    } else {
+      return res.status(200).json({ isBound: false });
+    }
+  } catch (error) {
+    console.error("Error checking wallet binding:", error);
+    return res.status(500).json(error.message);
+  }
+});
+
 
 module.exports={userRouter}
 
